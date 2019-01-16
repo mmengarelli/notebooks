@@ -8,4 +8,4 @@ display(df)
 
 // COMMAND ----------
 
-display(df.select("unpaid_balance").limit(50))
+display(df.select("unpaid_balance").limit(25))
