@@ -9,3 +9,8 @@ display(df)
 // COMMAND ----------
 
 display(df.select("unpaid_balance").limit(50))
+
+// COMMAND ----------
+
+import org.apache.spark.sql.functions._
+display(df.groupBy("year").agg(avg($"unpaid_balance")))
