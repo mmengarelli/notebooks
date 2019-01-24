@@ -12,5 +12,6 @@ display(df.select("unpaid_balance").limit(55))
 
 // COMMAND ----------
 
+// I added this comment in vi
 import org.apache.spark.sql.functions._
 display(df.groupBy("year").agg(avg($"unpaid_balance")))
