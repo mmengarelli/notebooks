@@ -13,15 +13,14 @@
 # COMMAND ----------
 
 df = spark.read.option("multiline", "true").json("/mnt/mikem/amplitude/")
-display(df)
+#display(df)
 
 # COMMAND ----------
 
 newDF = df.withColumnRenamed("$insert_id", "id").drop("$schema").drop("event_properties")
 newDF.write.format("delta").mode("overwrite").saveAsTable("mikem.amplitude")
 
-print("I just added this")
-
+print("hello world")
 
 # COMMAND ----------
 
