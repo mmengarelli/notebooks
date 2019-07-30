@@ -20,6 +20,9 @@ display(df)
 newDF = df.withColumnRenamed("$insert_id", "id").drop("$schema").drop("event_properties")
 newDF.write.format("delta").mode("overwrite").saveAsTable("mikem.amplitude")
 
+print("I just added this")
+
+
 # COMMAND ----------
 
 # MAGIC %sql select * from mikem.amplitude
