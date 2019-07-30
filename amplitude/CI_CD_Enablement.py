@@ -20,7 +20,7 @@ df = spark.read.option("multiline", "true").json("/mnt/mikem/amplitude/")
 newDF = df.withColumnRenamed("$insert_id", "id").drop("$schema").drop("event_properties")
 newDF.write.format("delta").mode("overwrite").saveAsTable("mikem.amplitude")
 
-print("hello world")
+print("heya world")
 
 # COMMAND ----------
 
