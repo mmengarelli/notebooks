@@ -8,11 +8,21 @@
 // MAGIC <li>Spark SQL Database
 // MAGIC <li>Redshift Database
 // MAGIC <small><p>_This notebook uses [anonymized mortgage information](https://www.fhfa.gov/DataTools/Downloads/Pages/Public-Use-Databases.aspx) from Fannie Mae and Freddie Mac._ </small>
+// MAGIC   
+// MAGIC <!--
+// MAGIC # demo-ready
+// MAGIC # mm-demo
+// MAGIC # Mortgage Demo
+// MAGIC -->
 
 // COMMAND ----------
 
-// DBTITLE 1,Run setup notebook
+// DBTITLE 1,Setup
 // MAGIC %run ./Setup
+
+// COMMAND ----------
+
+// MAGIC %md #### Explore
 
 // COMMAND ----------
 
@@ -21,18 +31,21 @@
 
 // COMMAND ----------
 
-// DBTITLE 1,Load mortgage data into a view
+// DBTITLE 1,Load data
 val df = spark.read.option("header", "true")
   .option("delimiter", "\t")
   .option("inferSchema", "true") 
   .csv("/mnt/mikem/mortgage_data")  
 
 df.createOrReplaceTempView("mortgage_data")
+
+// COMMAND ----------
+
 df.printSchema
 
 // COMMAND ----------
 
-// DBTITLE 1,Quick exploration
+// DBTITLE 0,Quick exploration
 display(df)
 
 // COMMAND ----------
@@ -42,13 +55,12 @@ display(df.select("unpaid_balance").describe())
 
 // COMMAND ----------
 
-// DBTITLE 1,Sample of unpaid balance
-display(df.select("unpaid_balance").limit(50))
+// DBTITLE 1,Avg unpaid balance by year
+// MAGIC %sql SELECT year, avg(unpaid_balance) FROM mortgage_data GROUP BY year ORDER BY year asc
 
 // COMMAND ----------
 
-// DBTITLE 1,Avg unpaid balance by year
-// MAGIC %sql SELECT year, avg(unpaid_balance) FROM mortgage_data GROUP BY year ORDER BY year asc
+// MAGIC %md #### Data Engineering
 
 // COMMAND ----------
 
@@ -80,7 +92,11 @@ display(joined.select("record","usps_code", "state_name", "state_code"))
 
 // COMMAND ----------
 
-// DBTITLE 1,Predict unpaid balance with machine learning
+// MAGIC %md #### Train
+
+// COMMAND ----------
+
+// DBTITLE 1,Train DecisionTreeRegressor
 // MAGIC %python
 // MAGIC sfhDf = spark.read.table("mortgage_data")
 // MAGIC 
@@ -114,36 +130,27 @@ display(joined.select("record","usps_code", "state_name", "state_code"))
 
 // COMMAND ----------
 
-// DBTITLE 1,Compare unpaid balance with prediction
-// MAGIC %sql SELECT unpaid_balance, prediction FROM model_results order by unpaid_balance desc
+// MAGIC %md #### Accuracy
 
 // COMMAND ----------
 
-// DBTITLE 1,Let's check our accuracy (using ggplot)
-// MAGIC %python
-// MAGIC from ggplot import *
-// MAGIC pydf = (
-// MAGIC   result.select("record", "unpaid_balance", "prediction")
-// MAGIC     .orderBy("record",asc=False)
-// MAGIC     .sample(False, 0.0001, 42)
-// MAGIC     .toPandas()
-// MAGIC )
-// MAGIC display(
-// MAGIC   ggplot(pydf, aes('record','unpaid_balance')) +
-// MAGIC     geom_point(color='blue') + 
-// MAGIC     geom_line(pydf, aes('record','prediction'), color='green') + 
-// MAGIC     scale_x_log10() + scale_y_log10()
-// MAGIC )
+// DBTITLE 0,Compare unpaid balance with prediction
+// MAGIC %sql select unpaid_balance, prediction from model_results order by unpaid_balance desc
 
 // COMMAND ----------
 
-// DBTITLE 1,Identify most important features from the best model? (50%+ from annual income, 12% from zip code)
 // MAGIC %python
-// MAGIC from pyspark.sql.functions import *
+// MAGIC import plotly.express as px
 // MAGIC 
-// MAGIC importance = zip(model.stages[1].bestModel.featureImportances.toArray(), cols)
-// MAGIC temp = sc.parallelize(importance).map(lambda f: [float(f[0]), f[1]])
-// MAGIC display(sqlContext.createDataFrame(temp, ["importance", "feature"]).orderBy(col("importance").desc()))
-
-// COMMAND ----------
-
+// MAGIC # to Pandas
+// MAGIC pds = result.select("unpaid_balance", "prediction") \
+// MAGIC  .sample(False, 0.0001, 42) \
+// MAGIC  .toPandas()
+// MAGIC 
+// MAGIC plt = px.scatter(pds, title="Prediction vs Unpaid Balance", \
+// MAGIC         x="prediction", y="unpaid_balance", \
+// MAGIC         log_x=True, log_y=True, \
+// MAGIC         trendline="lowess", trendline_color_override="#8FBC8F", \
+// MAGIC         width=640, height=480)
+// MAGIC 
+// MAGIC plt.show()
