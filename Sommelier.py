@@ -5,7 +5,7 @@
 # MAGIC 
 # MAGIC Besides the grape variety (which there are over ten thousand), environmental factors like the climate and PH of the soil can have significant impact on the profile of the wine.  
 # MAGIC 
-# MAGIC Many fine restaurants employ **sommeliers** to guide diners in their selection process. Sommeliers have extensive knowledge in all of the characteristics that contrinute to a wine's profile. Their role is to make accurate recommendations based on your past experiences. 
+# MAGIC Many fine restaurants employ **sommeliers** to guide customers in the wine selection process. Sommeliers have extensive knowledge in all of the characteristics that contrinute to a wine's profile. Their role is to make accurate recommendations based on your past experiences. 
 # MAGIC 
 # MAGIC Similar to an experienced sommelier, we will use machine learning to make predictions based on the experiences and preferences of wine drinkers with a similar profile.
 # MAGIC 
@@ -25,6 +25,14 @@
 # MAGIC * winery
 # MAGIC 
 # MAGIC <small>This experiment was largely motivated by this [project](https://www.kaggle.com/sudhirnl7/wine-recommender).</small>
+# MAGIC 
+# MAGIC 
+# MAGIC <!-- 
+# MAGIC # mm-demo
+# MAGIC # demo-ready
+# MAGIC # Wine Demo
+# MAGIC # Sommelier
+# MAGIC -->
 
 # COMMAND ----------
 
@@ -63,20 +71,53 @@ print('Done')
 
 # COMMAND ----------
 
+df.createOrReplaceTempView("df")
+
+# COMMAND ----------
+
+# MAGIC %sql select distinct country from df order by country
+
+# COMMAND ----------
+
+# MAGIC %sql select * from wine_ratings where cc is null
+
+# COMMAND ----------
+
+display(df.select("country").distinct())
+
+
+# COMMAND ----------
+
+# MAGIC %scala
+# MAGIC 
+# MAGIC import org.apache.spark.sql.functions._
+# MAGIC 
+# MAGIC val newDF = table("df").withColumn("new_cntry", when(col("country").equalTo("US"), "United States").otherwise(col("country"))).drop("country").withColumnRenamed("new_cntry","country")
+# MAGIC .withColumn("new_cntry", when(col("country").equalTo("England"), "United Kingdom").otherwise(col("country"))).drop("country").withColumnRenamed("new_cntry","country")
+# MAGIC .withColumn("new_cntry", when(col("country").equalTo("anti-Chardonnay"), null).otherwise(col("country"))).drop("country").withColumnRenamed("new_cntry","country")
+# MAGIC .withColumn("new_cntry", when(col("country").equalTo("elegant"), null).otherwise(col("country"))).drop("country").withColumnRenamed("new_cntry","country")
+# MAGIC 
+# MAGIC newDF.write.mode("overwrite").csv("/mnt/mikem/wine-ratings/csv")
+
+# COMMAND ----------
+
+# MAGIC %fs ls /mnt/mikem/wine-ratings/csv
+
+# COMMAND ----------
+
 # Read and drop any with null points
-df = spark.read.schema(schema).csv("/mnt/mikem/wine-mag/csv") \
-.na.drop("all", subset=["points"])
+df = spark.read.schema(schema).csv("/mnt/mikem/wine-ratings/csv") \
+  .na.drop("all", subset=["points"]) \
+  .drop("region_2") \
+  .drop("taster_twitter_handle") \
 
 # Add country code data
-cc = spark.table("mikem.iso_country_codes").select("name", "alpha-3").withColumnRenamed("alpha-3","cc")
-df2 = df.join(cc, cc.name == df.country, "left_outer")
+codes = table("mikem.country_codes").select("alpha-3 code", "country")
+ratingsDF = df.join(codes, df['country'] == codes['country'], "left_outer").withColumnRenamed("alpha-3 code", "cc")
 
-# Drop unused columns
-ratingsDF = df2.drop("taster_twitter_handle").drop("name").drop("region_2") 
 ratingsDF.createOrReplaceTempView("wine_ratings")
-ratingsDF.cache().count()
 
-display(ratingsDF.sort(desc("points")))
+display(ratingsDF)
 
 # COMMAND ----------
 
