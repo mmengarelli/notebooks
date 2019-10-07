@@ -1,4 +1,26 @@
 # Databricks notebook source
+# MAGIC %sh cat /dbfs/mnt/mikem/datasets/wine_mag-64245.csv
+
+# COMMAND ----------
+
+# MAGIC %fs ls /mnt/mikem/datasets/wine_mag/
+
+# COMMAND ----------
+
+# MAGIC %fs rm -r /mnt/mikem/datasets/wine_mag/
+
+# COMMAND ----------
+
+spark.conf.set("spark.sql.sources.commitProtocolClass","org.apache.spark.sql.execution.datasources.SQLHadoopMapReduceCommitProtocol")
+spark.conf.set("mapreduce.fileoutputcommitter.marksuccessfuljobs","false")
+
+path = '/mnt/mikem/datasets/wine_mag-64245.csv'
+df = spark.read.option("header", True).schema(schema).csv(path).drop("taster_twitter_handle")
+
+df.repartition(8).write.mode("overwrite").csv("/mnt/mikem/datasets/wine_mag/")
+
+# COMMAND ----------
+
 # MAGIC %md-sandbox 
 # MAGIC # Using Collaborative Filtering to recommend wine
 # MAGIC Choosing a wine can be a lot like the game of roulette. There are countless varities and flavor profiles, making selection resemble guesswork for the average wine drinker. Many think that price is an indicator of quality, but that is not always the case. 
@@ -59,11 +81,12 @@ schema = StructType([
   StructField("region_1", StringType(), True),
   StructField("region_2", StringType(), True),
   StructField("taster_name", StringType(), True),
-  StructField("taster_twitter_handle", StringType(), True),
   StructField("title", StringType(), True),
   StructField("variety", StringType(), True),
-  StructField("winery", StringType(), True)])
-print('Done')
+  StructField("winery", StringType(), True)
+])
+
+None
 
 # COMMAND ----------
 
@@ -71,45 +94,14 @@ print('Done')
 
 # COMMAND ----------
 
-df.createOrReplaceTempView("df")
-
-# COMMAND ----------
-
-# MAGIC %sql select distinct country from df order by country
-
-# COMMAND ----------
-
-# MAGIC %sql select * from wine_ratings where cc is null
-
-# COMMAND ----------
-
-display(df.select("country").distinct())
-
-
-# COMMAND ----------
-
-# MAGIC %scala
-# MAGIC 
-# MAGIC import org.apache.spark.sql.functions._
-# MAGIC 
-# MAGIC val newDF = table("df").withColumn("new_cntry", when(col("country").equalTo("US"), "United States").otherwise(col("country"))).drop("country").withColumnRenamed("new_cntry","country")
-# MAGIC .withColumn("new_cntry", when(col("country").equalTo("England"), "United Kingdom").otherwise(col("country"))).drop("country").withColumnRenamed("new_cntry","country")
-# MAGIC .withColumn("new_cntry", when(col("country").equalTo("anti-Chardonnay"), null).otherwise(col("country"))).drop("country").withColumnRenamed("new_cntry","country")
-# MAGIC .withColumn("new_cntry", when(col("country").equalTo("elegant"), null).otherwise(col("country"))).drop("country").withColumnRenamed("new_cntry","country")
-# MAGIC 
-# MAGIC newDF.write.mode("overwrite").csv("/mnt/mikem/wine-ratings/csv")
-
-# COMMAND ----------
-
-# MAGIC %fs ls /mnt/mikem/wine-ratings/csv
+display(df)
 
 # COMMAND ----------
 
 # Read and drop any with null points
-df = spark.read.schema(schema).csv("/mnt/mikem/wine-ratings/csv") \
+df = spark.read.schema(schema).csv("/mnt/mikem/datasets/wine_mag") \
   .na.drop("all", subset=["points"]) \
-  .drop("region_2") \
-  .drop("taster_twitter_handle") \
+  .drop("region_2")
 
 # Add country code data
 codes = table("mikem.country_codes").select("alpha-3 code", "country")
