@@ -91,27 +91,7 @@ display(mtgDelta.select("unpaid_balance").describe())
 
 // COMMAND ----------
 
-val features = Array(
- "census_median_income",
- "local_median_income",
- "tract_income_ratio",
- "borrowers_annual_income",
- "borrower_income_ratio",
- "loan_purpose",
- "federal_guarantee",
- "number_of_borrowers",
- "first_time_buyers",
- "borrower_race_1",
- "borrower_ethnicity",
- "co_borrower_race_1",
- "co_borrower_ethnicity",
- "borrower_gender",
- "co_borrower_gender",
- "borrower_age",
- "co_borrower_age",
- "property_type",
- "year"
-)
+val features = mtgDelta.drop("state","st_code","unpaid_balance").columns
 
 // COMMAND ----------
 
@@ -129,11 +109,17 @@ val Array(train, test) = mtgDelta.randomSplit(Array(.7, .3))
 val pipeline = new Pipeline().setStages(Array(indexer, dt))
 val model = pipeline.fit(train)
 
+displayHTML("Done training")
+
 // COMMAND ----------
 
 // DBTITLE 1,Predict
 val results = model.transform(test)
 results.createOrReplaceTempView("results")
+
+// COMMAND ----------
+
+// MAGIC %md #### Check accuracy
 
 // COMMAND ----------
 
@@ -152,3 +138,32 @@ results.createOrReplaceTempView("results")
 // MAGIC         width=640, height=480)
 // MAGIC 
 // MAGIC plt.show()
+
+// COMMAND ----------
+
+val evaluator = new RegressionEvaluator()
+  .setLabelCol("unpaid_balance")
+  .setPredictionCol("prediction")
+  .setMetricName("rmse")
+val rmse = evaluator.evaluate(results)
+
+println(s"Root Mean Squared Error (RMSE) on test data = $rmse")
+
+// COMMAND ----------
+
+val treeModel = model.stages(1).asInstanceOf[DecisionTreeRegressionModel]
+display(treeModel)
+
+// COMMAND ----------
+
+val evaluator = new RegressionEvaluator()
+  .setLabelCol("unpaid_balance")
+  .setPredictionCol("prediction")
+  .setMetricName("rmse")
+val rmse = evaluator.evaluate(results)
+
+println(s"Root Mean Squared Error (RMSE) on test data = $rmse")
+
+// COMMAND ----------
+
+// MAGIC %md #### Let's try Random Forest
