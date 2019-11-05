@@ -1,7 +1,10 @@
 // Databricks notebook source
 // MAGIC %md-sandbox
-// MAGIC # Analyzing Flight Data with Databricks Delta
-// MAGIC **Databricks Delta** extends Apache Spark to simplify data reliability and boost Spark's performance.
+// MAGIC 
+// MAGIC <img src="https://mikem-docs.s3-us-west-2.amazonaws.com/img/delta-lake-logo.png" style="float:left; margin-right: 50px; height: 60px;"/> 
+// MAGIC # Analyzing Flight Delays with Delta Lake
+// MAGIC 
+// MAGIC <img src="https://mikem-docs.s3-us-west-2.amazonaws.com/img/air2.jpg" style="float:right; height: 250px; border: 1px solid #ddd; border-radius: 5px 5px 5px 5px; padding: 5px;"/>
 // MAGIC 
 // MAGIC Building robust, high performance data pipelines can be difficult due to: _lack of indexing and statistics_, _data inconsistencies introduced by schema changes_ and _pipeline failures_, _and having to trade off between batch and stream processing_.
 // MAGIC 
@@ -11,16 +14,26 @@
 // MAGIC * Simplified data pipeline with flexible `UPSERT` support and unified Structured Streaming + batch processing on a single data source.
 // MAGIC 
 // MAGIC <small>[Delta Blog](https://databricks.com/blog/2018/07/31/processing-petabytes-of-data-in-seconds-with-databricks-delta.html)</small>
+// MAGIC 
+// MAGIC <!--
+// MAGIC # delta
+// MAGIC # airline demo
+// MAGIC # demo-ready
+// MAGIC # mm-demo
+// MAGIC -->
 
 // COMMAND ----------
 
+// DBTITLE 1,Setup
 import org.apache.spark.sql._
 import org.apache.spark.sql.functions._
 
-dbutils.fs.rm("/tmp/delayed_flights_delta", true)
-dbutils.fs.rm("/tmp/delayed_flights_parquet", true)
+spark.conf.set("spark.sql.shuffle.partitions", "32")
 
-spark.sql("DROP TABLE IF EXISTS mikem.delayed_flights")
+spark.range(1, 50).foreachPartition{_ => dbutils.fs.rm("/tmp/delayed_flights_delta", true)}
+spark.range(1, 50).foreachPartition{_ => dbutils.fs.rm("/tmp/delayed_flights_parquet", true)}
+
+spark.sql("drop table if exists mikem.delayed_flights")
 
 // COMMAND ----------
 
@@ -32,7 +45,7 @@ spark.sql("DROP TABLE IF EXISTS mikem.delayed_flights")
 val flights = spark.read
   .option("header", "true") 
   .option("inferSchema", "true") 
-  .csv("/mnt/mikem/asa/airlines")
+  .csv("/mnt/mcm/flights08")
 
 flights.printSchema
 
@@ -48,16 +61,13 @@ flights.count
 
 // DBTITLE 0,Data Engineering
 val delayedFlights = flights
-.drop("TaxiIn")
-.drop("TaxiOut")
-.drop("Cancelled")
-.drop("CancellationCode")
-.drop("Diverted")
-.drop("ActualElapsedTime")
-.drop("TailNum")
-.filter("ArrDelay > 0 or DepDelay > 0")
+ .withColumnRenamed("UniqueCarrier", "Carrier")
+ .withColumn("DateStr", concat('year, lit('-'), 'month, lit('-'), 'dayofmonth))
+ .withColumn("Date", to_date('DateStr, "yyyy-M-d"))
+ .where("ArrDelay > 0 or DepDelay > 0")
+ .select('Date, 'Carrier,'FlightNum, 'Origin, 'Dest, 'DepTime, 'ArrTime, 'Distance, 'WeatherDelay)
 
-delayedFlights.printSchema
+display(delayedFlights)
 
 // COMMAND ----------
 
@@ -69,13 +79,12 @@ delayedFlights.count
 
 // COMMAND ----------
 
-// MAGIC %sql desc extended mikem.airline
-
-// COMMAND ----------
-
 // DBTITLE 0,Write Parquet and Delta tables
-delayedFlights.write.format("parquet").partitionBy("Origin").save("/tmp/delayed_flights_parquet")
-delayedFlights.write.format("delta").partitionBy("Origin").save("/tmp/delayed_flights_delta")
+delayedFlights.repartition('Origin)
+  .write.format("parquet").partitionBy("Origin").save("/tmp/delayed_flights_parquet")
+
+delayedFlights.repartition('Origin)
+  .write.format("delta").partitionBy("Origin").save("/tmp/delayed_flights_delta")
 
 // COMMAND ----------
 
@@ -95,7 +104,7 @@ delayedFlights.write.format("delta").partitionBy("Origin").save("/tmp/delayed_fl
 
 // COMMAND ----------
 
-// MAGIC %sql convert to delta parquet.`/tmp/delayed_flights_parquet` partitioned by (origin string)
+// MAGIC %sql -- convert to delta parquet.`/tmp/delayed_flights_parquet` partitioned by (origin string)
 
 // COMMAND ----------
 
@@ -119,7 +128,8 @@ delayedFlights.write.format("delta").partitionBy("Origin").save("/tmp/delayed_fl
 
 // COMMAND ----------
 
-// MAGIC %sql update mikem.delayed_flights 
+// MAGIC %sql 
+// MAGIC update mikem.delayed_flights 
 // MAGIC set distance = 375 
 // MAGIC where flightnum = 72 and carrier = 'UA'
 
