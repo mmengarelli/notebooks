@@ -91,17 +91,14 @@ display(plt.show())
 
 # COMMAND ----------
 
-# DBTITLE 1,Price: Top 95 percentile by variety
+# DBTITLE 1,Highest rated wines by variety
 # MAGIC %sql 
-# MAGIC SELECT
-# MAGIC   variety, price
-# MAGIC FROM (
-# MAGIC   SELECT variety, price, 
-# MAGIC     ntile(100) OVER (PARTITION BY price order by price) as percentile
-# MAGIC   FROM wine_ratings) tmp
-# MAGIC WHERE
-# MAGIC   percentile > 95
-# MAGIC   and price > 100
+# MAGIC select variety, price, points, rank from (
+# MAGIC  select *,
+# MAGIC   dense_rank() over (partition by variety order by points desc) as rank
+# MAGIC  from wine_ratings
+# MAGIC  where points > 98
+# MAGIC ) where rank <= 2
 
 # COMMAND ----------
 
