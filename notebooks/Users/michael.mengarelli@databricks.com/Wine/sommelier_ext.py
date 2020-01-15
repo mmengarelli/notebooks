@@ -24,7 +24,12 @@
 # MAGIC * variety
 # MAGIC * winery
 # MAGIC 
-# MAGIC <small>This experiment was largely motivated by this [project](https://www.kaggle.com/sudhirnl7/wine-recommender).</small>
+# MAGIC <small>This experiment was largely motivated by this [project](https://www.kaggle.com/sudhirnl7/wine-recommender).</small><br/>
+# MAGIC <small>This is an extended version of [this notebook](https://demo.cloud.databricks.com/#notebook/1471889).</small>
+
+# COMMAND ----------
+
+# MAGIC %md ##### TODO: Only rec wines > 80 pts
 
 # COMMAND ----------
 
@@ -36,13 +41,8 @@
 
 # COMMAND ----------
 
-df = spark.read.schema(schema).csv("/mnt/mikem/datasets/wine_mag") 
-df.where("points == 0").count()
-
-# COMMAND ----------
-
 # Read and drop any with null points
-df = spark.read.schema(schema).csv("/mnt/mikem/datasets/wine_mag") \
+df = spark.read.schema(schema).csv("/mnt/mcm/datasets/wine_mag") \
  .na.drop("all", subset=["points"]) \
  .drop("region_2")
 
@@ -74,16 +74,19 @@ ratingsDF.count()
 from wordcloud import WordCloud,STOPWORDS
 import matplotlib.pyplot as plt
 
-# Get all descriptors and serialize to string
-l = list(ratingsDF.select('description').toPandas()['description'])
-st = ''.join(str(e.encode('ascii','ignore')) for e in l)
+lst = list(ratingsDF.select('description').toPandas()['description'])
+txt = ''.join(str(e.encode('ascii','ignore')) for e in lst)
 
-wc = WordCloud(max_words=1000, width=640, height=480, background_color="#001a1a", \
- margin=0, stopwords=STOPWORDS, colormap='gist_stern').generate(st)
- 
+mask = get_transformed_winemask('wine_mask1.png')
+
+wc = WordCloud(max_words=250, width=640, height=480, background_color="#FFFFFF", \
+               margin=0, mask=mask, stopwords=STOPWORDS, contour_width=1, \
+               contour_color='black', colormap='twilight_shifted').generate(txt)
+
 plt.imshow(wc, interpolation='bilinear')
 plt.axis("off")
 plt.margins(x=0, y=0)
+
 display(plt.show())
 
 # COMMAND ----------
@@ -154,13 +157,16 @@ itemRecs = alsModel.recommendForAllItems(10)
 # COMMAND ----------
 
 # DBTITLE 1,User recommendations
+from pyspark.sql.functions import explode
+
 df = userRecs.filter("user_id == 12").selectExpr("explode(recommendations.item_id) as recommendation")
 display(df)
 
 # COMMAND ----------
 
 # MAGIC %md ###Evaluation
-# MAGIC We evaluate the recommendation by measuring the Mean Squared Error of rating prediction.
+# MAGIC 
+# MAGIC In reality, a recommender can be evaluated tangibly by sales, customer feedback, and other KPI's. For this exercise we will use RMSE (root mean square error) to evaluate efficacy of our model.
 
 # COMMAND ----------
 
@@ -191,20 +197,39 @@ display(perUserPredictions)
 
 # COMMAND ----------
 
-userIndexer = model.stages[0]
-userSubset = userIndexer.transform(ratingsDF).select(als.getUserCol()).distinct().limit(3)
+indexedUsers = model.stages[0].transform(ratingsDF)
+userSubset = indexedUsers.select(als.getUserCol()).distinct().limit(3)
 
-itemIndexer = model.stages[1]
-movieSubset = itemIndexer.transform(ratingsDF).select(als.getItemCol()).distinct().limit(3)
+indexedItems = model.stages[1].transform(ratingsDF)
+itemSubset = indexedItems.select(als.getItemCol()).distinct().limit(3)
+
+# COMMAND ----------
+
+display(indexedItems.select("title","item_id").distinct().orderBy("item_id"))
 
 # COMMAND ----------
 
 userSubsetRecs = alsModel.recommendForUserSubset(userSubset, 10)
-itemSubsetRecs = alsModel.recommendForItemSubset(movieSubset, 10)
+itemSubsetRecs = alsModel.recommendForItemSubset(itemSubset, 10)
 
 # COMMAND ----------
 
-display(userSubsetRecs)
+recs = userSubsetRecs.selectExpr("explode(recommendations.item_id) as item_id") \
+ .join(indexedItems, ["item_id"]) \
+ .join(indexedUsers.drop("title"), ["taster_name"]) \
+ .select("user_id", "taster_name", "item_id", "title") \
+ .distinct() \
+ .orderBy("user_id", "item_id")
+
+display(recs)
+
+# COMMAND ----------
+
+titles = recs.select("title").where("user_id == 0").collect()
+rows = [row[0] for row in titles]
+
+#out = [lambda x: x(0) for x in titles]
+#out
 
 # COMMAND ----------
 
