@@ -1,2 +1,4 @@
 # Databricks notebook source
-println("hello world")
+print("hello world")
+
+spark.read.csv("/databricks-datasets/asa/airlines/").limit(5).show()
