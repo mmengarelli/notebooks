@@ -1,4 +1,8 @@
 # Databricks notebook source
 print("hello world")
 
-spark.read.csv("/databricks-datasets/asa/airlines/").limit(5).show()
+df = spark.read.option("header",True).csv("/databricks-datasets/asa/airlines/") \
+  .select("FlightNum", "Origin", "Dest", "DepTime", "ArrTime", "AirTime", "Distance") \
+  .limit(10)
+
+df.show()
