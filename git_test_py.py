@@ -3,6 +3,6 @@ print("hello world")
 
 df = spark.read.option("header",True).csv("/databricks-datasets/asa/airlines/") \
   .select("FlightNum", "Origin", "Dest", "DepTime", "ArrTime", "AirTime", "Distance") \
-  .limit(100)
+  .limit(10)
 
 df.show()
