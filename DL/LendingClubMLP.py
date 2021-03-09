@@ -75,9 +75,26 @@ with mlflow.start_run():
 preds = model.predict(X_test)
 score = model.score(X_test, y_test)
 
+# COMMAND ----------
+
+# MAGIC %md #### Evaluate
+
+# COMMAND ----------
+
+# Log performance 
 (mse, r2, f1) = eval_metrics(y_test, preds)
 
 mlflow.log_metric('test score', score)
 mlflow.log_metric('test mse', mse)
 mlflow.log_metric('test r2', r2)
 mlflow.log_metric('test f1', f1)
+
+# COMMAND ----------
+
+from sklearn.metrics import classification_report,confusion_matrix
+
+print(confusion_matrix(y_test, preds))
+
+# COMMAND ----------
+
+print(classification_report(y_test, preds))
