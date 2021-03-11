@@ -21,8 +21,6 @@
 # COMMAND ----------
 
 import tensorflow as tf
-from tensorflow.keras import layers, regularizers, Sequential, metrics
-
 import pandas as pd
 
 print(tf.__version__, "GPUs:", tf.config.list_physical_devices('GPU'))
@@ -87,11 +85,15 @@ tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=experiment_log_dir
 # COMMAND ----------
 
 # DBTITLE 1,Build model
+from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras import regularizers, Sequential, metrics
+
 l2 = 2e-3 # reg term
 model = Sequential([
-  #layers.Flatten(input_shape=()),
-  layers.Dense(5, kernel_regularizer=regularizers.l2(l2), activation=tf.nn.relu),
-  layers.Dense(1, kernel_regularizer=regularizers.l2(l2), activation=tf.nn.sigmoid)
+  Dense(5, input_dim=X_train.shape[1], kernel_regularizer=regularizers.l2(l2), activation=tf.nn.relu),
+  Dense(1, kernel_regularizer=regularizers.l2(l2), activation=tf.nn.sigmoid)
 ])
 
 metrics = [
@@ -122,7 +124,20 @@ model.summary()
 
 # COMMAND ----------
 
+loss, accuracy, auc, precision, recall = model.evaluate(X_train, y_train, verbose=2, callbacks=[tensorboard_callback])
+print('Accuracy: %.2f' % (accuracy*100))
+
+# COMMAND ----------
+
 preds = model.predict(X_test)
+
+# COMMAND ----------
+
+# DBTITLE 1,Spot check
+preds = model.predict_classes(X_test)
+
+for i in range(X_test.shape[0]):
+  print('predicted: %d actual: %d)' % (preds[i], y_test[i]))
 
 # COMMAND ----------
 
@@ -142,3 +157,6 @@ loss, accuracy, auc, precision, recall = model.evaluate(X_test, y_test, verbose=
 # COMMAND ----------
 
 dbutils.tensorboard.stop()
+
+# COMMAND ----------
+
