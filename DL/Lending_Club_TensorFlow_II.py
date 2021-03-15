@@ -82,7 +82,7 @@ print("Tensorboard experiment_log_dir:", experiment_log_dir)
 
 # COMMAND ----------
 
-# DBTITLE 1,Build model
+# DBTITLE 0,Build model
 from tensorflow.keras import layers, regularizers, Sequential, metrics
 from tensorflow.keras.models import Sequential 
 from tensorflow.keras.layers import Dense
@@ -92,6 +92,7 @@ def create_model(optimizer='rmsprop', init='glorot_uniform'):
   model = Sequential()
   model.add(Dense(5, input_dim=X.shape[1], kernel_initializer=init, 
                   kernel_regularizer=regularizers.l2(1e-2), activation='relu'))
+  #model.add(Dropout(0.2))  
   model.add(Dense(1, activation='sigmoid'))
   
   model.compile(optimizer=optimizer,
@@ -113,34 +114,35 @@ fit_params = dict(callbacks=[tensorboard_callback])
 
 # COMMAND ----------
 
+import warnings
+warnings.filterwarnings("ignore")
+
+# COMMAND ----------
+
 from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 
-model = KerasClassifier(build_fn=create_model, verbose=0)
+model = KerasClassifier(build_fn=create_model, verbose=2)
 
-optimizers = ['rmsprop', 'adam']
-inits= ['glorot_uniform', 'normal']
-epochs = [5, 10]
+optimizers = ['rmsprop']#, 'adam']
+inits= ['glorot_uniform']#, 'normal']
+epochs = [5]#, 10]
 
 param_grid = dict(optimizer=optimizers, epochs=epochs, init=inits)
 grid = GridSearchCV(estimator=model, param_grid=param_grid, cv=3)
 grid_result = grid.fit(X, y, **fit_params)
 
-# summarize results
-print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
-mlflow.log_metric("Best Score", grid_result.best_score_)
-#mlflow.log_metric("Best Params", grid_result.best_params_)
+# # summarize results
+# print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
+# #mlflow.log_metric("Best Score", grid_result.best_score_)
+# #mlflow.log_metric("Best Params", grid_result.best_params_)
 
-means = grid_result.cv_results_['mean_test_score']
-stds = grid_result.cv_results_['std_test_score']
-params = grid_result.cv_results_['params']
+# means = grid_result.cv_results_['mean_test_score']
+# stds = grid_result.cv_results_['std_test_score']
+# params = grid_result.cv_results_['params']
 
-for mean, stdev, param in zip(means, stds, params):
-  print("%f (%f) with: %r" % (mean, stdev, param))
-
-# COMMAND ----------
-
-2*2*2*3
+# for mean, stdev, param in zip(means, stds, params):
+#   print("%f (%f) with: %r" % (mean, stdev, param))
 
 # COMMAND ----------
 
@@ -152,10 +154,6 @@ for mean, stdev, param in zip(means, stds, params):
 
 print("Accuracy: %.2f%% (%.2f%%)" % (results.mean()*100, results.std()*100))
 
-
-# COMMAND ----------
-
-dbutils.notebook.exit()
 
 # COMMAND ----------
 
