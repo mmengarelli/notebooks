@@ -16,14 +16,6 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install mlflow --upgrade
-
-# COMMAND ----------
-
-# MAGIC %run /Users/michael.mengarelli@databricks.com/common_utils_py
-
-# COMMAND ----------
-
 import datetime
 
 import tensorflow as tf
@@ -36,6 +28,8 @@ from tensorflow.python.keras.metrics import AUC, Precision, Recall
 
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
+
+import matplotlib.pyplot as plt
 
 import mlflow 
 import mlflow.tensorflow
@@ -87,6 +81,34 @@ def build_model(optimizer='rmsprop', init='glorot_uniform'):
 
 # COMMAND ----------
 
+def plot_accuracy(history):
+  plt.plot(history['accuracy'])
+  plt.title('Accuracy per Epoch')
+  plt.ylabel('Accuracy')
+  plt.xlabel('Epoch')
+  plt.legend(['train'], loc='upper left')
+  
+  fig = plt.figure(1)
+  fig.savefig("accuracy.png")
+  
+  plt.show()
+
+# COMMAND ----------
+
+def plot_loss(history):
+  plt.plot(history['loss'])
+  plt.title('Loss per Eopch')
+  plt.ylabel('loss')
+  plt.xlabel('epoch')
+  plt.legend(['train'], loc='upper left')
+  
+  fig = plt.figure(1)
+  fig.savefig("loss.png")
+  
+  plt.show()
+
+# COMMAND ----------
+
 X, y = load_data()
 X_enc = encode_inputs(X)
 y_enc = encode_labels(y)
@@ -95,33 +117,35 @@ y_enc = encode_labels(y)
 
 # MAGIC %md #### Train
 # MAGIC * mlflow logging ✅
-# MAGIC * Tensorflow debugging ✅
 # MAGIC * Parameter search ✅ 
-
-# COMMAND ----------
-
-experiment_log_dir = get_user_home() + "/lctf/tensorboard/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-print("experiment_log_dir:", experiment_log_dir)
-tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=experiment_log_dir)
-
-fit_params = dict(callbacks=[tensorboard_callback])
 
 # COMMAND ----------
 
 mlflow.tensorflow.autolog()
 
-model = KerasClassifier(build_fn=build_model, verbose=2)
+with mlflow.start_run() as run:
+  model = KerasClassifier(build_fn=build_model, verbose=2)
 
-# Test with small/few parameters
-optimizers = ['rmsprop'] # , 'adam']
-inits= ['glorot_uniform', 'normal']
-epochs = [3, 5]  
+  optimizers = ['rmsprop', 'adam']
+  inits= ['glorot_uniform', 'normal']
+  epochs = [5, 10, 15]  
 
-param_grid = dict(optimizer=optimizers, epochs=epochs, init=inits)
-grid = GridSearchCV(estimator=model, param_grid=param_grid, cv=3)
+  param_grid = dict(optimizer=optimizers, epochs=epochs, init=inits)
+  grid = GridSearchCV(estimator=model, param_grid=param_grid, cv=3)
 
-grid_result = grid.fit(X_enc, y_enc, **fit_params)
+  grid_result = grid.fit(X_enc, y_enc, use_multiprocessing=True)
+  history = grid_result.best_estimator_.model.history.history
+
+  plot_accuracy(history)
+  plot_loss(history)
+
+  mlflow.log_artifact('accuracy.png')
+  mlflow.log_artifact('loss.png')
 
 # COMMAND ----------
 
-mlflow.end_run()
+plot_accuracy(history)
+plot_loss(history)
+
+mlflow.log_artifact('accuracy.png')
+mlflow.log_artifact('loss.png')
