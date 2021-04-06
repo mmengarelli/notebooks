@@ -107,7 +107,7 @@ y_train_enc, y_test_enc = encode_labels(y_train, y_test)
 # COMMAND ----------
 
 # MAGIC %md #### Train
-# MAGIC * mlflow logging ✅
+# MAGIC * MLflow logging ✅
 # MAGIC * Parameter search ✅ 
 
 # COMMAND ----------
@@ -134,24 +134,20 @@ mlflow.log_artifact(plot_loss(history))
 
 # COMMAND ----------
 
-import pandas as pd
-
-pd.DataFrame(grid.cv_results_).head()
-
-# COMMAND ----------
-
-print(grid.best_params_)
-print(grid.best_score_)
-
-# COMMAND ----------
-
 preds = best_model.evaluate(X_test_enc, y_test_enc)
 
 # COMMAND ----------
 
-mlflow.log("test loss: ", preds[0])
-mlflow.log("test accuracy: ", preds[1])
+# MAGIC %md #### Test
+
+# COMMAND ----------
+
+mlflow.log_metric("test loss", preds[0])
+mlflow.log_metric("test accuracy", preds[1])
 
 # COMMAND ----------
 
 mlflow.end_run()
+
+# COMMAND ----------
+
