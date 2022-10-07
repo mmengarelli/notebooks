@@ -1,0 +1,21 @@
+-- Databricks notebook source
+-- MAGIC %md # Best Practices
+-- MAGIC ## General
+-- MAGIC * Use commenting (table and column)
+-- MAGIC * Table properties
+-- MAGIC   * Z-Order cols
+-- MAGIC   * Metadata
+-- MAGIC   * File retention
+-- MAGIC 
+-- MAGIC ## Dot publish to metastore
+-- MAGIC SQL: `CREATE TEMPORARY LIVE TABLE customers_raw`<br>
+-- MAGIC Python: `temporary = true` 
+-- MAGIC 
+-- MAGIC ## Save Quarrantined Records
+-- MAGIC Create rules that are the inverse of the expectations you’ve defined and use those rules to save the invalid records to a separate table. You can programmatically create these inverse rules. 
+-- MAGIC 
+-- MAGIC ## Keep environments isolated
+-- MAGIC Use target param to set different db/schema targets 
+-- MAGIC 
+-- MAGIC ## Create complex expectations
+-- MAGIC You can use sql aggregates and joins to perform complex validations

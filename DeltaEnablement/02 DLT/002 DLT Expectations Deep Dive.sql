@@ -1,0 +1,14 @@
+-- Databricks notebook source
+-- MAGIC %md # Complex Validations
+-- MAGIC 
+-- MAGIC ## SQL Constraints
+-- MAGIC <pre>
+-- MAGIC CREATE STREAMING LIVE VIEW customers_cdc_clean(
+-- MAGIC   CONSTRAINT valid_id EXPECT (id IS NOT NULL) ON VIOLATION DROP ROW,
+-- MAGIC   CONSTRAINT valid_operation EXPECT (operation IN ('APPEND', 'DELETE', 'UPDATE')) ON VIOLATION DROP ROW,
+-- MAGIC   CONSTRAINT valid_json_schema EXPECT (_rescued_data IS NULL) ON VIOLATION DROP ROW
+-- MAGIC )
+-- MAGIC COMMENT "Cleansed cdc data, tracking data quality with a view. We ensude valid JSON, id and operation type"
+-- MAGIC AS SELECT * 
+-- MAGIC FROM STREAM(live.customers_cdc)
+-- MAGIC </pre>
