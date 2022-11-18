@@ -35,3 +35,12 @@ spark.conf.set("mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
 spark.conf.set("parquet.enable.summary-metadata", "false")
 spark.conf.set("spark.hadoop.mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
 spark.conf.set("spark.databricks.io.directoryCommit.createSuccessFile", "false")
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC ALTER TABLE mikem.bchmrk_rslts SET TBLPROPERTIES (
+# MAGIC    'delta.columnMapping.mode' = 'name',
+# MAGIC    'delta.minReaderVersion' = '2',
+# MAGIC    'delta.minWriterVersion' = '5'
+# MAGIC )
