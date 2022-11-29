@@ -113,11 +113,33 @@ FROM emp;
 
 -- COMMAND ----------
 
+CREATE OR REPLACE TEMP VIEW sales(year, quarter, region, sales) AS
+VALUES 
+  (2018, 1, 'east', 100),
+  (2018, 2, 'east',  20),
+  (2018, 3, 'east',  40),
+  (2018, 4, 'east',  40),
+  (2019, 1, 'east', 120),
+  (2019, 2, 'east', 110),
+  (2019, 3, 'east',  80),
+  (2019, 4, 'east',  60),
+  (2018, 1, 'west', 105),
+  (2018, 2, 'west',  25),
+  (2018, 3, 'west',  45),
+  (2018, 4, 'west',  45),
+  (2019, 1, 'west', 125),
+  (2019, 2, 'west', 115),
+  (2019, 3, 'west',  85),
+  (2019, 4, 'west',  65);
+  
+select * from sales;
+
+-- COMMAND ----------
+
 -- DBTITLE 1,Sum sales by quarter
 select * from sales
   PIVOT (sum(sales) AS sales
-    for quarter
-    in (1 as q1, 2 as q2, 3 as q3, 4 as q4))
+    for quarter in (1,2,3,4))
 
 -- COMMAND ----------
 
