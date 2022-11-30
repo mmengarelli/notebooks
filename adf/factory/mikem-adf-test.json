@@ -1,0 +1,9 @@
+{
+	"name": "mikem-adf-test",
+	"location": "centralus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "ee772d7a-403a-4f45-b965-e4670e4e6b4a",
+		"tenantId": "9f37a392-f0ae-4280-9796-f1864a10effc"
+	}
+}
