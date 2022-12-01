@@ -1,0 +1,97 @@
+{
+	"name": "mikem_loan_stats",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "AzureDatabricksDeltaLake1",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureDatabricksDeltaLakeDataset",
+		"typeProperties": {
+			"database": "mikem",
+			"table": "loanstats_all"
+		},
+		"schema": [
+			{
+				"name": "loan_amnt",
+				"type": "float"
+			},
+			{
+				"name": "funded_amnt",
+				"type": "integer"
+			},
+			{
+				"name": "term",
+				"type": "string"
+			},
+			{
+				"name": "int_rate",
+				"type": "float"
+			},
+			{
+				"name": "installment",
+				"type": "double"
+			},
+			{
+				"name": "grade",
+				"type": "string"
+			},
+			{
+				"name": "emp_length",
+				"type": "float"
+			},
+			{
+				"name": "home_ownership",
+				"type": "string"
+			},
+			{
+				"name": "annual_inc",
+				"type": "float"
+			},
+			{
+				"name": "verification_status",
+				"type": "string"
+			},
+			{
+				"name": "loan_status",
+				"type": "string"
+			},
+			{
+				"name": "purpose",
+				"type": "string"
+			},
+			{
+				"name": "addr_state",
+				"type": "string"
+			},
+			{
+				"name": "issue_d",
+				"type": "string"
+			},
+			{
+				"name": "earliest_cr_line",
+				"type": "string"
+			},
+			{
+				"name": "revol_util",
+				"type": "float"
+			},
+			{
+				"name": "bad_loan",
+				"type": "string"
+			},
+			{
+				"name": "issue_year",
+				"type": "double"
+			},
+			{
+				"name": "earliest_year",
+				"type": "double"
+			},
+			{
+				"name": "credit_length_in_years",
+				"type": "double"
+			}
+		]
+	}
+}
