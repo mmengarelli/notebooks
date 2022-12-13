@@ -1,34 +1,52 @@
-# Databricks notebook source
-import dlt
+-- Databricks notebook source
+-- MAGIC %md This is much easier to do using streaming and Python 🐍
+-- MAGIC 
+-- MAGIC Note: delete does not seem to work well. TODO: Check change feed for deletes
 
-# COMMAND ----------
+-- COMMAND ----------
 
-@dlt.view
-def changes_vw():
-  return (
-    spark.readStream
-      .format("cloudFiles")
-      .option("cloudFiles.format", "json")
-      .load("/mnt/mikem/data/infor/json")
-  )
+use 01_CDC_DLT_Partial
 
-# COMMAND ----------
+-- COMMAND ----------
 
-from pyspark.sql.functions import expr
+create table if not exists gold (
+  id int,
+  name string,
+  seq int,
+  state string,
+  change_version int -- needed to track latest changes
+)
+using delta
 
-dlt.create_target_table("silver")
+-- COMMAND ----------
 
-dlt.apply_changes(
-  target = "silver",
-  source = "changes_vw",
-  keys = ["id"],
-  sequence_by = "seq",
-  apply_as_deletes = expr("delete = '1'"),
-  except_column_list = ["delete", "_rescued_data"]  
+-- MAGIC %md you could also get `max_change_version` from a widget assigned to the output of a Python variable but that is also hacky
+
+-- COMMAND ----------
+
+create or replace temporary view changes as (
+  select * from table_changes('__apply_changes_storage_silver', 1)
+    where _commit_version > (select coalesce(max(change_version), 0) from gold)
+    and _change_type <> 'update_preimage'
 )
 
-# COMMAND ----------
+-- COMMAND ----------
 
-@dlt.table
-def gold():
-  return spark.table("LIVE.silver").select("name", "state")
+merge into gold g
+using changes chgs
+on g.id = chgs.id
+when matched and chgs._change_type = 'update_postimage' 
+  then update set
+    g.seq = chgs.seq,
+    g.name = chgs.name,
+    g.state = chgs.state,
+    g.change_version = chgs._commit_version
+when matched and chgs._change_type = 'delete' 
+  then delete 
+when not matched
+  then insert (id, name, seq, state, change_version)
+    values(chgs.id, chgs.name, chgs.seq, chgs.state, chgs._commit_version)
+
+-- COMMAND ----------
+
+select * from gold
