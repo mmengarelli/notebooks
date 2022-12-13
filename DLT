@@ -1,0 +1,34 @@
+# Databricks notebook source
+import dlt
+
+# COMMAND ----------
+
+@dlt.view
+def changes_vw():
+  return (
+    spark.readStream
+      .format("cloudFiles")
+      .option("cloudFiles.format", "json")
+      .load("/mnt/mikem/data/infor/json")
+  )
+
+# COMMAND ----------
+
+from pyspark.sql.functions import expr
+
+dlt.create_target_table("silver")
+
+dlt.apply_changes(
+  target = "silver",
+  source = "changes_vw",
+  keys = ["id"],
+  sequence_by = "seq",
+  apply_as_deletes = expr("delete = '1'"),
+  except_column_list = ["delete", "_rescued_data"]  
+)
+
+# COMMAND ----------
+
+@dlt.table
+def gold():
+  return spark.table("LIVE.silver").select("name", "state")
