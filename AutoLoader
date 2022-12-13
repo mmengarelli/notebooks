@@ -1,0 +1,60 @@
+# Databricks notebook source
+from pyspark.sql.functions import *
+
+path = "/mnt/mikem/data/autoloader_test1"
+schema_location = "/tmp/AutoLoader1/schema"
+checkpoint_location = "/mnt/mikem/chkpts/AutoLoader1"
+
+dbutils.fs.rm(path, True)
+dbutils.fs.rm(schema_location, True)
+dbutils.fs.rm(checkpoint_location, True)
+
+sql("drop table if exists mikem_dummy_autoloader")
+
+def process_row(df, epoch_id):
+  df.collect().show()
+
+# COMMAND ----------
+
+df = spark.range(4).coalesce(1).orderBy(desc("id")).take(1)
+display(df)
+
+# COMMAND ----------
+
+# MAGIC %md NOTE: Run the ./DataGen notebook simultaneously
+
+# COMMAND ----------
+
+from pyspark.sql.functions import input_file_name
+
+stream_df = spark.readStream \
+  .format("cloudFiles") \
+  .option("cloudFiles.format", "parquet") \
+  .option("cloudFiles.schemaLocation", schema_location) \
+  .load(path) \
+  .drop("_rescued_data") \
+  .withColumn("filePath", input_file_name())
+
+# COMMAND ----------
+
+display(stream_df)
+
+# COMMAND ----------
+
+stream_df.writeStream \
+  .foreachBatch(process_row).start()
+
+# COMMAND ----------
+
+# MAGIC %sql 
+# MAGIC select * from mikem_dummy_autoloader
+# MAGIC --select count(1) as ct from mikem_dummy_autoloader
+
+# COMMAND ----------
+
+# DBTITLE 1,Stop all Streams
+for s in spark.streams.active:
+  s.stop()
+
+# COMMAND ----------
+
