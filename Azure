@@ -1,0 +1,25 @@
+# Databricks notebook source
+STORAGE_ACCOUNT = ""
+CONTAINER = ""
+MOUNT_POINT = "/mnt/"
+APPLICATION_ID = ""
+DIRECTORY_ID = ""
+APP_KEY = ""
+source = "abfss://"+CONTAINER+"@"+STORAGE_ACCOUNT+".dfs.core.windows.net/"
+
+configs = {"fs.azure.account.auth.type": "OAuth",
+           "fs.azure.account.oauth.provider.type": "org.apache.hadoop.fs.azurebfs.oauth2.ClientCredsTokenProvider",
+           "fs.azure.account.oauth2.client.id": APPLICATION_ID,
+           "fs.azure.account.oauth2.client.secret": APP_KEY,
+           "fs.azure.account.oauth2.client.endpoint": "https://login.microsoftonline.com/"+DIRECTORY_ID+"/oauth2/token"}
+
+# COMMAND ----------
+
+dbutils.fs.unmount(MOUNT_POINT)
+
+# COMMAND ----------
+
+dbutils.fs.mount(
+  source = source,
+  mount_point = MOUNT_POINT,
+  extra_configs = configs)
