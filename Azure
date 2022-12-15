@@ -30,16 +30,16 @@ dbutils.fs.mount(
 
 # COMMAND ----------
 
-# MAGIC %md # Blob
+# MAGIC %md # Blob Using SAS Key 
+# MAGIC 
+# MAGIC sas_key ex: `?sv=2019-02-02&ss=bfqt&srt=sco&sp=rwdlacup&se=2020-06-16T23:30:49Z&st=2020-03-16T15:30:49Z&spr=https&sig=ds;fjdkslgjsdkfkdsf;lksd;flkfd;lskdfl`
 
 # COMMAND ----------
 
 container = ""
 storage_acct = ""
-conf_key = f"fs.azure.sas.{container}.{storage_acct}.blob.core.windows.net"
-sas_key = dbutils.secrets.get(scope = "oneenvkeys", key = "storage-sas-key")
-
 source_str = f"wasbs://{container}@{storage_acct}.blob.core.windows.net/"
+sas_key = dbutils.secrets.get(scope = "oneenvkeys", key = "storage-sas-key")
 conf_key = f"fs.azure.sas.{container}.{storage_acct}.blob.core.windows.net"
 
 dbutils.fs.unmount("/mnt/")
