@@ -1,4 +1,8 @@
 # Databricks notebook source
+# MAGIC %md # ADLS
+
+# COMMAND ----------
+
 STORAGE_ACCOUNT = ""
 CONTAINER = ""
 MOUNT_POINT = "/mnt/"
@@ -23,3 +27,25 @@ dbutils.fs.mount(
   source = source,
   mount_point = MOUNT_POINT,
   extra_configs = configs)
+
+# COMMAND ----------
+
+# MAGIC %md # Blob
+
+# COMMAND ----------
+
+container = ""
+storage_acct = ""
+conf_key = f"fs.azure.sas.{container}.{storage_acct}.blob.core.windows.net"
+sas_key = dbutils.secrets.get(scope = "oneenvkeys", key = "storage-sas-key")
+
+source_str = f"wasbs://{container}@{storage_acct}.blob.core.windows.net/"
+conf_key = f"fs.azure.sas.{container}.{storage_acct}.blob.core.windows.net"
+
+dbutils.fs.unmount("/mnt/")
+
+dbutils.fs.mount(
+  source = source_str,
+  mount_point = "/mnt/mikemblob",
+  extra_configs = {conf_key: sas_key}
+)
