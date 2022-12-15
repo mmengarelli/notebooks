@@ -30,9 +30,12 @@ dbutils.fs.mount(
 
 # COMMAND ----------
 
-# MAGIC %md # Blob Using SAS Key 
+# MAGIC %md # /mnt/mikemblob
+# MAGIC Using SAS Key
 # MAGIC 
-# MAGIC sas_key ex: `?sv=2019-02-02&ss=bfqt&srt=sco&sp=rwdlacup&se=2020-06-16T23:30:49Z&st=2020-03-16T15:30:49Z&spr=https&sig=ds;fjdkslgjsdkfkdsf;lksd;flkfd;lskdfl`
+# MAGIC Ex: `sp=racwdl&st=2022-12-15T23:09:21Z&se=2023-06-01T06:09:21Z&sv=2021-06-08&sr=c&sig=sk;lfkds;lfkdsl;fksdl;fkdl;s`
+# MAGIC 
+# MAGIC Note: Must have proper ACL's on SAS token and not be expired
 
 # COMMAND ----------
 
