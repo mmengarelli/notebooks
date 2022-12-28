@@ -1,57 +1,43 @@
 # Databricks notebook source
-# MAGIC %md # Data Generator
-# MAGIC Generates parquet files in various partitions<br>
-# MAGIC Ex: `dbfs:/mnt/mikem/data/autoloader_test1/Source=src1/Database=db1/Table=tbl1/Year=2022/Month=1/Day=2/Time=4/part-00000-e117d57e-de3d-47ac-b7aa-26024cdf81ed.c000.snappy.parquet`
+# DBTITLE 1,Setup
+source_path = dbutils.widgets.get("source")
+destination_table = dbutils.widgets.get("destination")
+mode = dbutils.widgets.get("mode")
+
+database_name = "mikem_autoloaders"
+schema_location = f"/tmp/AutoLoader/{destination_table}/schema"
+checkpoint_location = f"/mnt/mikem/chkpts/AutoLoader/{destination_table}"
+
+print(f"Path: {source_path}")
+print(f"Database: {database_name}")
+print(f"Table: {destination_table}")
+print(f"Mode: {mode}")
+print(f"Schema Location: {schema_location}")
+print(f"Checkpoint: {checkpoint_location}")
+
+# Append or overwrite table with each micro-batch
+def write_df(df, epoch_id):
+  df.write.mode(mode).saveAsTable(f"{database_name}.{destination_table}")
+
+sql(f"use {database_name}")
 
 # COMMAND ----------
 
-path = dbutils.widgets.get("path")
-dbutils.fs.rm(path, True)
+from pyspark.sql.functions import input_file_name
+
+stream_df = spark.readStream \
+  .format("cloudFiles") \
+  .option("cloudFiles.format", "parquet") \
+  .option("cloudFiles.schemaLocation", schema_location) \
+  .option("cloudFiles.maxFilesPerTrigger", 1) \
+  .load(source_path) \
+  .drop("_rescued_data") \
+  .withColumn("filePath", input_file_name())
 
 # COMMAND ----------
 
-spark.conf.set("spark.sql.sources.commitProtocolClass", "org.apache.spark.sql.execution.datasources.SQLHadoopMapReduceCommitProtocol")
-spark.conf.set("mapreduce.fileoutputcommitter.marksuccessfuljobs","false")
-
-cols = [
-    "Id",
-    "Seq",
-    "Value",
-    "Source",
-    "Database",
-    "Table",
-    "Year",
-    "Month",
-    "Day",
-    "Time"
-]
-
-def generate_data_frame(i,y,mon,day,time):
-  rows = [(i,1,"dummy","src1","db1","tbl1",y,mon,day,time)]
-  return spark.createDataFrame(rows, cols, schema)
-
-def generate_and_save(i,y,m,d,t):
-  df = generate_data_frame(i,y,m,d,t)
-  df.coalesce(1).write \
-    .partitionBy("Source", "Database", "Table", "Year", "Month", "Day", "Time") \
-    .mode("append") \
-    .parquet(path)
-
-# COMMAND ----------
-
-# Generates a parquet file (see above) to feed autoloader 
-# Pauses then creates a new one in a new partition 
-import time
-import random
-
-id = 0
-for m in range(1,5): # month
-  for d in range (1,5): # day 
-    for t in range (1, 5): # time
-      print(f"Generating /{m}/{d}/{t}")
-      generate_and_save(random.randint(1,999),2022,m,d,t)
-      time.sleep(5) # wait
-
-# COMMAND ----------
-
-generate_and_save(1,9999,1,1,1)
+stream_df.writeStream \
+  .option('checkpointLocation', checkpoint_location) \
+  .trigger(availableNow=True) \
+  .foreachBatch(write_df) \
+  .start()
