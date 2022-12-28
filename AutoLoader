@@ -1,106 +1,79 @@
 # Databricks notebook source
-# MAGIC %md # Generate Metadata
-# MAGIC Creates `{input path, output table name and write mode}` definitions for each table in the database
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC use mikem;
-# MAGIC drop table if exists autoloader_config;
+# MAGIC %md # Data Generator
+# MAGIC Generates parquet files with dummy data in various partitions<br>
 # MAGIC 
-# MAGIC create table autoloader_config (
-# MAGIC     source_path string, 
-# MAGIC     destination_table string,
-# MAGIC     mode string
-# MAGIC );
+# MAGIC For testing purposes only
 # MAGIC 
-# MAGIC insert into autoloader_config values 
-# MAGIC     ("/mnt/mikem/data/autoloader1", "autoloader1", "append"),
-# MAGIC     ("/mnt/mikem/data/autoloader2", "autoloader2", "append"),
-# MAGIC     ("/mnt/mikem/data/autoloader3", "autoloader3", "append"),
-# MAGIC     ("/mnt/mikem/data/autoloader4", "autoloader4", "append"),
-# MAGIC     ("/mnt/mikem/data/autoloader5", "autoloader5", "overwrite")
+# MAGIC Ex: `dbfs:/mnt/mikem/data/autoloader_test1/Source=src1/Database=db1/Table=tbl1/Year=2022/Month=1/Day=2/Time=4/part-00000-e117d57e-de3d-47ac-b7aa-26024cdf81ed.c000.snappy.parquet`
 
 # COMMAND ----------
 
-config_df = spark.table("mikem.autoloader_config")
-row_list = config_df.collect()
-display(row_list)
+path = dbutils.widgets.get("path")
+dbutils.fs.rm(path, True)
+print(f"Path is: {path}")
 
 # COMMAND ----------
 
-# MAGIC %md # Function Definitions
+spark.conf.set("spark.sql.sources.commitProtocolClass", "org.apache.spark.sql.execution.datasources.SQLHadoopMapReduceCommitProtocol")
+spark.conf.set("mapreduce.fileoutputcommitter.marksuccessfuljobs","false")
+spark.conf.set("parquet.enable.summary-metadata", "false")
 
-# COMMAND ----------
-
-def run_notebook(notebook, timeout, params):
-  dbutils.notebook.run(notebook, timeout, params)
-
-# COMMAND ----------
-
-# MAGIC %md # Generate Dummy Data for Each Autoloader Path
-
-# COMMAND ----------
-
-for row in row_list:
-  run_notebook("DataGenParameterized", 90, {"path": row.source_path})
-
-# COMMAND ----------
-
-# MAGIC %md # Run Autloader Notebook Serially
-
-# COMMAND ----------
-
-for row in row_list:
-  run_notebook("AutoLoaderParameterized", 900, 
-    {"source": row.source_path, "destination": row.destination_table, "mode": row.mode})
-
-# COMMAND ----------
-
-# MAGIC %md # Run Autoloader Notebooks in Parallel
-# MAGIC 
-# MAGIC Notes:
-# MAGIC * Size cluster accordingly
-# MAGIC * Perhaps process chunks of 20/30 datasets at a time
-
-# COMMAND ----------
-
-# MAGIC %md ## 1. Python Multiprocessing
-
-# COMMAND ----------
-
-import concurrent.futures
-import multiprocessing
-
-rows = [
-  ("/mnt/mikem/data/autoloader1", "autoloader1", "append"),
-  ("/mnt/mikem/data/autoloader2", "autoloader2", "append"),
-  ("/mnt/mikem/data/autoloader3", "autoloader3", "append"),
-  ("/mnt/mikem/data/autoloader4", "autoloader4", "append"),
-  ("/mnt/mikem/data/autoloader5", "autoloader5", "overwrite")
+cols = [
+    "Id",
+    "Seq",
+    "Value",
+    "Source",
+    "Database",
+    "Table",
+    "Year",
+    "Month",
+    "Day",
+    "Time"
 ]
 
-def run_parallel(df):
-  run_notebook("AutoLoaderParameterized", 900, 
-    {"source": df[0], "destination": df[1], "mode": df[2]})
+def generate_data_frame(i,y,mon,day,time):
+  rows = [(i,1,"dummy","src1","db1","tbl1",y,mon,day,time)]
+  return spark.createDataFrame(rows, cols)
+
+def generate_and_save(i,y,m,d,t):
+  df = generate_data_frame(i,y,m,d,t)
+  df.coalesce(1).write \
+    .partitionBy("Year", "Month", "Day", "Time") \
+    .mode("append") \
+    .parquet(path)
+  print(f"Wrote to {path}")
 
 # COMMAND ----------
 
-# DBTITLE 1,Run notebooks concurrently
-num_workers = multiprocessing.cpu_count() - 1
-with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
-  results = list(executor.map(run_parallel, rows))
+# Generates a parquet file (see above) to feed autoloader 
+# Pauses then creates a new one in a new partition 
+import time
+import random
 
-print(results)
+id = 0
+for m in range(1,2): # month
+  for d in range (1,3): # day 
+    for t in range (1,4): # time
+      print(f"Generating ../{m}/{d}/{t}")
+      generate_and_save(random.randint(1,999),2022,m,d,t)
+      time.sleep(2) # wait
 
 # COMMAND ----------
 
-# MAGIC %md ## 2. RDD API: Flat Map
-# MAGIC 
-# MAGIC ⚠️ Not possible. Cannot use `dbutils` on executor
+# dbutils.fs.rm(path, True)
+# dbutils.fs.rm("/mnt/mikem/chkpts/AutoLoader/autoloader5", True)
+# generate_and_save(1,2020,1,1,10)
 
 # COMMAND ----------
 
-config_df.rdd.flatMap(
-  lambda r: run_notebook(r.source_path, r.destination_table, r.mode)
-).count()
+# dbutils.fs.rm("/mnt/mikem/data/autoloader1", True)
+# dbutils.fs.rm("/mnt/mikem/data/autoloader2", True)
+# dbutils.fs.rm("/mnt/mikem/data/autoloader3", True)
+# dbutils.fs.rm("/mnt/mikem/data/autoloader4", True)
+# dbutils.fs.rm("/mnt/mikem/data/autoloader5", True)
+
+# dbutils.fs.rm("/mnt/mikem/chkpts/AutoLoader", True)
+# dbutils.fs.mkdirs("/mnt/mikem/chkpts/AutoLoader")
+
+# sql("drop database if exists mikem_autoloaders cascade")
+# sql("create database mikem_autoloaders")
