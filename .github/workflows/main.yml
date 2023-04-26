@@ -1,0 +1,7 @@
+name: Push
+on: [push]
+jobs:
+  do-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
